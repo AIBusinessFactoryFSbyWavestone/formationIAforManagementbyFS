@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitcher l'IA — De l'irritant à la mission</title>
+<style>
+  :root{
+    --ws-blue:#451DC7; --ws-indigo:#250F6B; --ws-green:#04F06A; --ws-green-text:#047857;
+    --ws-mint:#CAFEE0; --ws-grey:#F6F6F6; --ws-amber:#FFCA4A; --ws-red:#FF2A49; --ws-red-text:#B4232F;
+    --bg:#f4f6f9; --card:#ffffff; --text:#1A1338; --muted:#5b5f6b; --border:#e2e6ec; --radius:12px;
+    --font-body:'Aptos','Calibri','Segoe UI',Arial,sans-serif;
+    --font-heading:'Aptos SemiBold','Aptos','Calibri','Segoe UI',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.5;}
+  button,input,select,textarea{font-family:inherit;}
+
+  header.app-header{background:var(--ws-blue);color:#fff;padding:20px 24px;}
+  header.app-header .brand{font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.75);margin-bottom:4px;}
+  header.app-header h1{margin:0;font-size:22px;font-weight:600;font-family:var(--font-heading);}
+  header.app-header p{margin:6px 0 0;color:rgba(255,255,255,.85);font-size:14px;}
+  header.app-header .head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+  button.btn-reset{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.6);border-radius:7px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  button.btn-reset:hover{background:rgba(255,255,255,.12);}
+  .container{max-width:880px;margin:0 auto;padding:24px 20px 60px;}
+
+  .case-tracker{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+  .case-pill{flex:1;min-width:150px;text-align:center;padding:8px 6px;border-radius:8px;background:#fff;border:1px solid var(--border);font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer;}
+  .case-pill.active{background:var(--ws-blue);color:#fff;border-color:var(--ws-blue);}
+  .case-pill.done{background:var(--ws-mint);color:var(--text);border-color:var(--ws-mint);}
+  .case-pill.mine{border-style:dashed;}
+  .case-pill.mine.active{border-style:solid;}
+
+  .step-tracker{display:flex;gap:8px;margin-bottom:22px;}
+  .step-dot{flex:1;height:6px;border-radius:3px;background:var(--border);}
+  .step-dot.active{background:var(--ws-green);}
+  .step-dot.past{background:var(--ws-blue);}
+  .step-label{font-size:13px;color:var(--ws-indigo);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+
+  .card-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:26px 28px;box-shadow:0 1px 3px rgba(37,15,107,.06);}
+  .mission-context{background:var(--ws-grey);border-left:4px solid var(--ws-indigo);padding:14px 16px;border-radius:6px;font-size:14.5px;margin-bottom:20px;color:var(--ws-indigo);}
+  .mission-context .fictif{display:block;font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;}
+  .brief{background:#fff;border:1.5px solid var(--ws-indigo);border-radius:9px;padding:14px 16px;margin-bottom:18px;font-size:14px;}
+  .brief b{display:block;color:var(--ws-indigo);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+  .brief ul{margin:0;padding-left:18px;}
+  .brief li{margin-bottom:3px;}
+  h2.q-title{font-family:var(--font-heading);font-weight:600;font-size:18px;margin:0 0 14px;color:var(--ws-blue);}
+  h3.sub{font-family:var(--font-heading);font-weight:600;font-size:15px;margin:20px 0 8px;color:var(--ws-indigo);}
+  .help{font-size:13.5px;color:var(--muted);margin:-6px 0 12px;}
+
+  .options{display:flex;flex-direction:column;gap:10px;margin-bottom:8px;}
+  .options.row{flex-direction:row;flex-wrap:wrap;}
+  .options.row button.option-card{flex:1;min-width:140px;}
+  button.option-card{width:100%;text-align:left;border:1.5px solid var(--border);background:#fff;border-radius:9px;padding:12px 15px;cursor:pointer;font-size:14.5px;color:var(--text);transition:border-color .15s,background .15s;line-height:1.45;}
+  button.option-card:hover{border-color:var(--ws-blue);}
+  button.option-card:focus-visible{outline:3px solid var(--ws-green);outline-offset:2px;}
+  button.option-card.on{border-color:var(--ws-blue);background:#f1edfc;}
+  button.option-card.ok{border-color:var(--ws-green-text);background:var(--ws-mint);}
+  button.option-card.partial{border-color:var(--ws-amber);background:#fff7dd;}
+  button.option-card.ko{border-color:var(--ws-red);background:rgba(255,42,73,.08);}
+  button.option-card small{display:block;color:var(--muted);font-size:12.5px;}
+  .option-note{margin-top:8px;font-size:13.5px;padding:10px 12px;border-radius:7px;color:var(--text);}
+  .option-note.ok{background:var(--ws-mint);}
+  .option-note.partial{background:#fff1c2;}
+  .option-note.ko{background:rgba(255,42,73,.12);}
+  .mark{font-weight:700;margin-right:6px;}
+  .mark.ok{color:var(--ws-green-text);} .mark.ko{color:var(--ws-red-text);} .mark.partial{color:#9a6b00;}
+
+  .feedback-box{margin-top:16px;padding:14px 16px;border-radius:8px;background:var(--ws-grey);font-size:14px;color:var(--ws-indigo);border-left:4px solid var(--ws-blue);}
+  .feedback-box.warn{border-left-color:var(--ws-amber);}
+  .hint{margin-top:8px;font-size:13px;color:var(--muted);font-style:italic;}
+
+  .yn-question{margin-bottom:16px;}
+  .yn-question p{font-size:14.5px;margin:0 0 8px;font-weight:600;color:var(--ws-indigo);}
+  .yn-buttons{display:flex;gap:10px;}
+  .yn-btn{flex:1;padding:10px;border-radius:7px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);}
+  .yn-btn.on{border-color:var(--ws-blue);background:var(--ws-blue);color:#fff;}
+
+  .impact{margin-top:14px;background:var(--ws-blue);color:#fff;border-radius:10px;padding:18px 20px;text-align:center;}
+  .impact.empty{background:var(--ws-grey);color:var(--muted);font-size:14px;}
+  .impact .num{font-family:var(--font-heading);font-size:26px;font-weight:700;}
+  .impact .num-label{font-size:12px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.5px;}
+  .tier-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12.5px;font-weight:700;margin-top:8px;color:var(--text);}
+  .tier-Faible{background:#fff;color:var(--ws-red-text);} .tier-Moyen{background:var(--ws-amber);} .tier-Fort{background:var(--ws-mint);}
+  .formula-note{font-size:12.5px;color:var(--muted);margin-top:10px;}
+
+  .field-row{margin-bottom:14px;}
+  .field-row label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+  .field-row input,.field-row textarea,.field-row select{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:14.5px;color:var(--text);background:#fff;}
+  .field-row textarea{min-height:76px;resize:vertical;}
+  .two-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .checks{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px;}
+  .checks label{display:flex;align-items:center;gap:6px;font-size:13.5px;border:1.5px solid var(--border);border-radius:7px;padding:7px 10px;cursor:pointer;background:#fff;}
+  .checks label.on{border-color:var(--ws-green-text);background:var(--ws-mint);}
+
+  .decision-result{margin-top:20px;padding:18px 20px;border-radius:10px;background:var(--ws-grey);border-left:4px solid var(--ws-blue);}
+  .decision-result .mission-name{font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--ws-blue);margin-bottom:6px;}
+  .chain{margin-top:10px;font-size:13.5px;}
+  .chain .who{display:inline-block;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;margin:4px 6px 0 0;}
+  .chain .who.bu{border-color:var(--ws-blue);}
+  .chain .who b{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;display:block;}
+  .objection{margin-top:20px;background:#fff;border:1.5px solid var(--ws-amber);border-radius:9px;padding:14px 16px;font-size:14.5px;font-style:italic;}
+  .objection b{font-style:normal;display:block;color:#9a6b00;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+  .pitch{margin-top:14px;background:#fff;border:1.5px solid var(--ws-blue);border-radius:9px;padding:14px 16px;font-size:14.5px;font-style:italic;color:var(--text);}
+  .pitch b{font-style:normal;display:block;color:var(--ws-blue);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+
+  .summary-grid{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14.5px;margin:14px 0 6px;}
+  .summary-grid .k{color:var(--muted);font-weight:600;white-space:nowrap;}
+  .tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;margin-left:6px;vertical-align:middle;}
+  .tag.ok{background:var(--ws-mint);color:var(--ws-green-text);} .tag.ko{background:rgba(255,42,73,.12);color:var(--ws-red-text);} .tag.warn{background:var(--ws-amber);color:var(--text);}
+
+  .nav-row{display:flex;justify-content:space-between;gap:10px;margin-top:22px;flex-wrap:wrap;}
+  button.nav-btn{padding:11px 22px;border-radius:8px;border:none;font-size:14.5px;font-weight:600;cursor:pointer;}
+  button.btn-primary{background:var(--ws-blue);color:#fff;}
+  button.btn-primary:disabled{background:rgba(69,29,199,.35);color:rgba(255,255,255,.8);cursor:not-allowed;}
+  button.btn-secondary{background:transparent;color:var(--ws-blue);border:1.5px solid var(--ws-blue);}
+
+  .compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px;}
+  .compare-card{border:1.5px solid var(--border);border-radius:10px;padding:14px;background:#fbfcfe;}
+  .compare-card h3{font-family:var(--font-heading);font-size:14px;margin:0 0 8px;color:var(--ws-blue);}
+  .compare-card .field{font-size:12.5px;margin-bottom:6px;}
+  .compare-card .field b{display:block;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;}
+  .closing-note{margin-top:22px;background:var(--ws-blue);color:#fff;padding:18px 20px;border-radius:10px;font-size:14.5px;}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ws-indigo);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  @media (max-width:700px){ .compare-grid,.two-cols{grid-template-columns:1fr;} .summary-grid{grid-template-columns:1fr;} .card-panel{padding:18px 16px;} }
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="head-row"><div class="brand">Wavestone — Formation IA · BU FS</div><button class="btn-reset" id="btnResetAll" title="Efface toutes vos réponses et repart du premier cas">↺ Recommencer depuis le début</button></div>
+  <h1>Pitcher l'IA : de l'irritant à la mission</h1>
+  <p>Un seul framework, quatre étapes : identifier, requalifier, valoriser, convertir. Un cas pour s'entraîner, puis votre propre mission. Comptez une quinzaine de minutes.</p>
+</header>
+<div class="container">
+  <div class="case-tracker" id="caseTracker" role="tablist"></div>
+  <div id="screen"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===========================================================================
+   RÉFÉRENTIEL — à maintenir ici quand l'organisation change
+=========================================================================== */
+const STEPS = ["Identifier", "Requalifier", "Valoriser", "Convertir"];
+const MINE = 1; /* index de l'onglet « Ma mission » : apres le cas */
+
+/* Suivi des comptes : le tableau du schéma donne les personnes ; l'outil ne cite
+   que les fonctions, c'est au participant d'aller lire la ligne de son compte. */
+const ACCOUNTS = ["BNPP", "BPCE", "CA", "AXA", "LBP", "CNP / BPI", "DI", "Allianz", "SG & Other"];
+const ROLES = {
+  champion:"IA Champion du compte", champFS:"IA Champ. FS du compte", sales:"Sales Relay du compte",
+  core:"Core team offre IA FS", factory:"AI business factory (asset FS)", tour:"Tour de contrôle matière produite",
+  formation:"Formation et Adoption", bu:"Relation BU IA", compte:"Responsable de compte"
+};
+
+/* Les voies et les missions. */
+const ROUTES = {
+  si:     { name:"Voie SI",       lead:"Avant de parler d'IA, il faut que vos systèmes se parlent.",           desc:"Le blocage est structurel : systèmes non connectés ou donnée absente. L'offre IA n'est pas la porte d'entrée ; c'est le compte qui porte le sujet." },
+  change: { name:"Voie adoption", lead:"Ce n'est pas un problème d'outil, c'est un problème d'adoption.",       desc:"Les outils existent mais ne sont pas utilisés. Un outil de plus n'y changera rien : on diagnostique les usages d'abord." },
+  ia:     { name:"Voie IA",       lead:"C'est un cas où l'IA fait la différence, à condition de le mesurer.",   desc:"La donnée est disponible et le processus est tenu : l'IA peut s'y greffer. Reste à nommer la famille d'usage et à dimensionner l'enjeu." }
+};
+const FAMILIES = [
+  { name:"Automatisation de tâches répétitives", example:"ressaisie, extraction d'informations dans des documents" },
+  { name:"Génération & synthèse de contenu",      example:"rédiger un compte-rendu, résumer un long dossier" },
+  { name:"Recherche & analyse d'information",     example:"retrouver une information dispersée dans plusieurs sources" },
+  { name:"Aide à la décision",                    example:"recommander, prioriser des dossiers selon un score" }
+];
+const MISSIONS = {
+  quickwin: { name:"Pilote IA sur périmètre test", desc:"Donnée prête, processus tenu, enjeu fort : un pilote court et mesuré, puis on industrialise si le gain est là." },
+  cadrage:  { name:"Cadrage IA",                   desc:"L'enjeu est réel mais le périmètre reste à préciser : on cadre avant de choisir une solution." },
+  si:       { name:"Transformation SI",            desc:"On pose d'abord les fondations ; l'IA viendra sur un socle qui la porte." },
+  change:   { name:"Accompagnement de l'adoption", desc:"On diagnostique les usages réels avant tout investissement supplémentaire." }
+};
+
+/* Qui mobiliser, par voie — ordre de la chaîne. `bu:true` marque la seule sortie vers la BU IA. */
+function chainFor(route, tier){
+  if(route === "si") return [
+    { role:ROLES.sales, why:"le sujet sort de l'offre IA : le compte le porte vers les équipes SI de FS", first:true, key:"sales" },
+    { role:ROLES.compte, why:"pour arbitrer et positionner l'offre FS adaptée", key:"compte" }
+  ];
+  if(route === "change") return [
+    { role:ROLES.champFS, why:"point d'entrée FS de tout sujet IA sur le compte", first:true, key:"champFS" },
+    { role:ROLES.formation, why:"diagnostic d'usage et plan d'adoption", key:"formation" }
+  ];
+  const chain = [
+    { role:ROLES.champFS, why:"point d'entrée FS de tout sujet IA sur le compte", first:true, key:"champFS" },
+    { role:ROLES.core, why:"le pool d'experts qui cadre et instruit le cas", key:"core" }
+  ];
+  if(tier === "Fort"){
+    chain.push({ role:ROLES.factory, why:"pour monter le pilote vite", key:"factory" });
+    chain.push({ role:ROLES.bu, why:"une seule fois, si le pilote doit s'industrialiser", bu:true, key:"bu" });
+  }
+  return chain;
+}
+
+/* Étape 3 : ordres de grandeur. */
+const POP = [
+  { label:"Une équipe",          sub:"moins de 20 personnes",  lo:5,    hi:20 },
+  { label:"Un service",          sub:"20 à 200 personnes",     lo:20,   hi:200 },
+  { label:"Une direction",       sub:"200 à 2 000 personnes",  lo:200,  hi:2000 },
+  { label:"Toute l'entreprise",  sub:"plus de 2 000",          lo:2000, hi:20000 }
+];
+const PART = [
+  { label:"Marginale",     sub:"moins de 5 % de leur temps", lo:0.01, hi:0.05 },
+  { label:"Notable",       sub:"5 à 20 %",                    lo:0.05, hi:0.20 },
+  { label:"Structurante",  sub:"plus de 20 %",                lo:0.20, hi:0.50 }
+];
+const ENJEUX = [
+  { key:"temps",   label:"Le temps passé, avant tout",           phrase:"C'est du temps d'expert qui part dans une tâche sans valeur." },
+  { key:"regul",   label:"Conformité / régulateur",     phrase:"Et le régulateur regarde ce parcours d'aussi près que vos clients." },
+  { key:"client",  label:"Expérience client",           phrase:"Et c'est le client qui attend au bout de ce délai." },
+  { key:"revenu",  label:"Délai de vente / revenu",     phrase:"Chaque jour de délai est du chiffre d'affaires qui se décale." },
+  { key:"risque",  label:"Risque opérationnel",         phrase:"Et chaque ressaisie est une erreur possible sur un dossier sensible." }
+];
+function impactOf(pop, part){
+  if(pop === null || part === null) return null;
+  const P = POP[pop], Q = PART[part];
+  const lo = P.lo * Q.lo, hi = P.hi * Q.hi;
+  const mid = Math.sqrt(lo * hi);
+  const tier = mid < 2 ? "Faible" : (mid < 20 ? "Moyen" : "Fort");
+  return { lo, hi, mid, tier };
+}
+function fmtEtp(n){ return n < 10 ? n.toLocaleString("fr-FR", { maximumFractionDigits:1 }) : Math.round(n).toLocaleString("fr-FR"); }
+/* Ordre de grandeur a dire a voix haute : un chiffre significatif. */
+function ordre(n){
+  if(n < 1) return n.toLocaleString("fr-FR", { maximumFractionDigits:1 });
+  const p = Math.pow(10, Math.floor(Math.log10(n)));
+  const k = n < 10 ? 2 : 1;
+  return (Math.round(n / p * k) / k * p).toLocaleString("fr-FR", { maximumFractionDigits:1 });
+}
+function etpPhrase(imp){ return `de l'ordre de ${ordre(imp.mid)} ETP (fourchette ${fmtEtp(imp.lo)} à ${fmtEtp(imp.hi)})`; }
+function fmtDate(iso){ if(!iso) return ""; const d = new Date(iso + "T00:00:00"); return isNaN(d) ? iso : d.toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" }); }
+
+/* Étape 4 : les next steps possibles (communs), l'attendu varie par cas. */
+const NEXT = [
+  { key:"revalider", label:"Revalider l'irritant avec le client", sub:"un échange de 30 minutes avec un manager de l'équipe concernée, sous quinze jours", pitch:"Je vous propose une demi-heure avec un manager de l'équipe pour vérifier que c'est bien ce qu'ils vivent." },
+  { key:"atelier",   label:"Proposer un atelier d'une heure",       sub:"avec les équipes concernées, à leur poste de travail, sous un mois", pitch:"Je vous propose une heure avec trois personnes de l'équipe, sur leur poste, pendant qu'elles travaillent : on observe, on ne les mobilise pas." },
+  { key:"rex",       label:"Chercher un REX comparable",            sub:"auprès de la Tour de contrôle, à transmettre au client sous une semaine", pitch:"Je vous propose de vous montrer, d'ici une semaine, un cas comparable que nous avons déjà mené." },
+  { key:"note",      label:"Envoyer une note au responsable de compte", sub:"trois lignes (irritant, voie, enjeu), sous 48 heures", pitch:"Je fais remonter ce sujet à notre responsable de compte cette semaine, pour qu'il soit porté au bon niveau et que vous ayez une proposition sous quinze jours." }
+];
+
+/* ===========================================================================
+   LES CAS — situations fictives, sur des comptes réels pour apprendre le routage
+=========================================================================== */
+const CASES = [
+  {
+    account:"AXA", tab:"Le cas AXA — Réclamations", title:"Cas AXA · Réclamations",
+    intro:"Vous êtes en mission d'<strong>amélioration de la performance opérationnelle</strong> du centre de relation client d'AXA, sur le traitement des réclamations.",
+    irritants:[
+      { text:"Le siège envisage à terme de regrouper tous les outils du service client dans une plateforme unique, sans budget ni date à ce stade.", correct:false, note:"Vision de long terme sans échéance : pas un irritant actionnable maintenant." },
+      { text:"Un pic de réclamations a été observé après la tempête de février, absorbé en trois semaines avec des renforts.", correct:false, note:"Ponctuel et déjà absorbé : pas un irritant récurrent." },
+      { text:"Pour reconstituer l'historique d'un client avant de traiter sa réclamation, les conseillers passent par quatre outils différents, à chaque dossier.", correct:true, note:"Récurrent, chronophage, mesurable — à chaque réclamation. C'est l'irritant à instruire." },
+      { text:"L'effectif du centre a été réduit de 10 % cette année, à volume d'appels constant, ce qui tend les délais de réponse.", correct:false, note:"Un fait organisationnel, pas un irritant opérationnel sur lequel une mission peut agir directement." }
+    ],
+    brief:[
+      "Les quatre outils (CRM, gestion des sinistres, GED, téléphonie) sont en place, accessibles depuis le poste du conseiller, et leurs données sont interrogeables via des API internes.",
+      "Le processus de traitement d'une réclamation est stable, formé à l'arrivée de chaque conseiller et suivi par des indicateurs hebdomadaires.",
+      "L'information recherchée existe toujours quelque part : le problème est de la retrouver, pas de la produire.",
+      "Certains conseillers gardent un fichier Excel personnel de « clients à suivre » : un signal à traiter dans le cadrage, pas la cause de l'irritant."
+    ],
+    q1:"Les outils qui donnent accès à l'historique client sont-ils en place et exploitables ?",
+    q2:"Le processus de traitement est-il stable et réellement appliqué par les équipes ?",
+    q1Answer:true, q2Answer:true,
+    q1Explain:"Quatre outils en place, accessibles, avec des API : la donnée est là.",
+    q2Explain:"Formé, suivi, mesuré : le processus est tenu. Le fichier Excel est un signal d'adoption à surveiller, pas un blocage.",
+    expectedRoute:"ia", correctFamily:2,
+    familyExplain:"L'information existe mais elle est dispersée dans quatre outils : <strong>recherche & analyse</strong>. Un assistant qui reconstitue l'historique avant l'appel.",
+    sizing:{
+      brief:[
+        "80 conseillers sur le plateau traitent les réclamations.",
+        "Ils estiment passer 15 à 20 % de leur temps à reconstituer les historiques.",
+        "L'assuré est en ligne pendant la recherche ; le NPS du service est suivi chaque mois par le COMEX."
+      ],
+      pop:1, part:1,
+      popNote:"80 conseillers : un service.",
+      partNote:"15 à 20 % : notable, en haut de fourchette.",
+      enjeuNotes:{
+        client:{ s:"ok", t:"L'assuré attend en ligne, et le COMEX regarde le NPS : l'argument principal est l'expérience client, et il remonte tout seul." },
+        temps:{ s:"partial", t:"Le temps est là, mais c'est ce que le client vit pendant ce temps qui fait bouger la direction." },
+        risque:{ s:"partial", t:"Une réclamation mal traitée est un risque, mais le brief parle de NPS, pas d'incidents." }
+      }
+    },
+    next:{ expected:"note", notes:{
+      revalider:{ s:"partial", t:"Les faits sont déjà établis par le brief. Une nouvelle réunion sans mission vendue retarde la transmission sans rien apporter." },
+      atelier:{ s:"ko", t:"Un atelier avant qu'une mission soit vendue, c'est du conseil offert. Vous avez identifié, requalifié et dimensionné : ce n'est plus à vous d'avancer, c'est à l'offre de convertir." },
+      rex:{ s:"partial", t:"Utile, mais ce sera à l'offre de le chercher une fois saisie. Transmettez d'abord, le REX viendra avec la proposition." },
+      note:{ s:"ok", t:"Vous avez fait votre part : identifier, requalifier, dimensionner. Trois lignes au responsable de compte, l'IA Champ. FS en copie, et l'offre prend le relais pour construire la proposition." }
+    }},
+    contactExpected:"champFS",
+    objection:{ text:"« Vous êtes déjà chez nous. Pourquoi passer par votre responsable de compte ? Faites-moi directement une proposition. »", options:[
+      { text:"« D'accord, je vous envoie une proposition d'ici vendredi. »", s:"ko", t:"Une proposition engagée seul, sans l'offre ni le compte, c'est une promesse que vous ne tiendrez pas. Ce n'est pas votre rôle." },
+      { text:"« Parce que ce sujet mérite les bonnes personnes. Je le fais remonter cette semaine, et vous aurez un interlocuteur et une proposition sous quinze jours. »", s:"ok", t:"Vous tenez la promesse par la transmission : le client obtient un délai et un interlocuteur, et vous restez dans votre rôle." },
+      { text:"« Je peux organiser un atelier avec vos équipes pour creuser le sujet. »", s:"ko", t:"Un atelier sans mission vendue, c'est du temps offert. Et vous vous engagez sur un travail qui appartient à l'offre." }
+    ]}
+  },
+];
+
+/* ===========================================================================
+   ÉTAT
+=========================================================================== */
+const STORAGE_KEY = "pitcher-ia-v4";
+function freshCase(){ return { irritant:null, irritantTries:0, q1:null, q2:null, family:null, pop:null, part:null, enjeu:null, next:null, contact:null, objection:null }; }
+function freshMine(){ return { account:"", client:"", irritant:"", checks:[false,false,false], q1:null, q2:null, family:null, pop:null, part:null, enjeu:null, next:null, contact:"", date:"" }; }
+function freshState(){ return { tab:0, screen:1, mineScreen:1, perCase:CASES.map(freshCase), mine:freshMine() }; }
+let state = freshState();
+try{ const s = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null"); if(s && s.perCase && s.perCase.length === CASES.length) state = Object.assign(freshState(), s); }catch(e){}
+function persist(){ try{ sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+
+function routeOf(q1, q2){ if(q1 === null || q2 === null) return null; if(!q1) return "si"; if(!q2) return "change"; return "ia"; }
+function missionOf(route, tier){ if(route === "si" || route === "change") return route; return tier === "Fort" ? "quickwin" : "cadrage"; }
+function esc(s){ return String(s || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function enjeuOf(key){ return ENJEUX.find(e => e.key === key); }
+
+/* ===========================================================================
+   RENDU COMMUN
+=========================================================================== */
+const $screen = document.getElementById("screen");
+
+function render(){
+  persist(); renderTracker();
+  if(state.tab === MINE){ renderMine(); return; }
+  const c = CASES[state.tab], pc = state.perCase[state.tab];
+  if(state.screen === 5){ $screen.innerHTML = renderSummary(c, pc); bindSummary(c, pc); return; }
+  let body = `<div class="card-panel">` + stepTracker(state.screen);
+  body += `<div class="mission-context">${c.intro}<span class="fictif">Situation fictive, à des fins d'exercice. Le compte est réel, pour apprendre à qui s'adresser.</span></div>`;
+  if(state.screen === 1) body += stepIdentify(c, pc);
+  if(state.screen === 2) body += stepRequalify(c, pc);
+  if(state.screen === 3) body += stepValue(c, pc);
+  if(state.screen === 4) body += stepConvert(c, pc);
+  body += `</div>` + navRow();
+  $screen.innerHTML = body;
+  bindStep(c, pc);
+}
+function renderTracker(){
+  const el = document.getElementById("caseTracker");
+  const pills = CASES.map((c, i) => `<button class="case-pill ${state.tab === i ? "active" : (caseDone(i) ? "done" : "")}" role="tab" data-tab="${i}">${c.tab}</button>`);
+  pills.push(`<button class="case-pill mine ${state.tab === MINE ? "active" : ""}" role="tab" data-tab="${MINE}">Ma mission</button>`);
+  el.innerHTML = pills.join("");
+  el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { state.tab = parseInt(b.dataset.tab); state.screen = 1; render(); }));
+}
+function caseDone(i){ const pc = state.perCase[i]; return pc.irritant !== null && routeOf(pc.q1, pc.q2) !== null && impactOf(pc.pop, pc.part) !== null && pc.next !== null; }
+function stepTracker(screen, label){
+  let dots = "";
+  for(let i = 1; i <= 4; i++){ let cls = "step-dot"; if(i < screen) cls += " past"; if(i === screen) cls += " active"; dots += `<div class="${cls}"></div>`; }
+  const s = Math.min(screen, 4);
+  return `<div class="step-label">${label || `Étape ${s}/4 — ${STEPS[s-1]}`}</div><div class="step-tracker">${dots}</div>`;
+}
+function optionCards(list, chosen, attr, judge, row){
+  /* judge(i) -> {s:"ok|partial|ko", t:"note"} ou null. En ligne, la note sort
+     du bouton pour ne pas etirer toute la rangee. */
+  let after = "";
+  const html = `<div class="options ${row ? "row" : ""}">` + list.map((o, i) => {
+    const on = chosen === i;
+    const j = on && judge ? judge(i) : null;
+    let cls = "option-card" + (on ? (j ? " " + j.s : " on") : "");
+    const mark = j ? `<span class="mark ${j.s}">${j.s === "ok" ? "✓" : j.s === "partial" ? "~" : "✗"}</span>` : "";
+    const sub = o.sub ? `<small>${o.sub}</small>` : "";
+    let note = "";
+    if(j){ if(row) after = `<div class="option-note ${j.s}">${j.t}</div>`; else note = `<div class="option-note ${j.s}">${j.t}</div>`; }
+    return `<button class="${cls}" data-${attr}="${i}">${mark}${o.text || o.label}${sub}${note}</button>`;
+  }).join("") + `</div>` + after;
+  return html;
+}
+function ynBlock(id, label, value, explain){
+  return `<div class="yn-question"><p>${label}</p><div class="yn-buttons">
+    <button class="yn-btn ${value === true ? "on" : ""}" data-q="${id}" data-val="true">Oui</button>
+    <button class="yn-btn ${value === false ? "on" : ""}" data-q="${id}" data-val="false">Non</button></div>
+    ${value !== null && explain ? `<div class="hint">${explain}</div>` : ""}</div>`;
+}
+
+/* ===========================================================================
+   ÉTAPES D'UN CAS
+=========================================================================== */
+function stepIdentify(c, pc){
+  let html = `<h2 class="q-title">Parmi ces observations, laquelle constitue un véritable irritant métier à traiter ?</h2>
+    <p class="help">Choisissez une réponse et lisez le commentaire. Vous pouvez changer d'avis avant de passer à la suite.</p>`;
+  html += optionCards(c.irritants, pc.irritant, "irritant", i => ({ s: c.irritants[i].correct ? "ok" : "ko", t: c.irritants[i].note }));
+  if(pc.irritant !== null) html += `<div class="feedback-box">Un bon irritant est <strong>récurrent, coûteux en temps pour les équipes et mesurable</strong>. Un incident isolé, une intention stratégique sans échéance ou un fait sur lequel aucune mission ne peut agir n'en sont pas.</div>`;
+  return html;
+}
+function briefBlock(c){ return `<div class="brief"><b>Ce que vous savez du client</b><ul>${c.brief.map(l => `<li>${l}</li>`).join("")}</ul></div>`; }
+function stepRequalify(c, pc){
+  const r = routeOf(pc.q1, pc.q2);
+  let html = `<h2 class="q-title">Requalifier : s'agit-il d'un sujet IA, d'un sujet SI ou d'un sujet d'adoption ?</h2>
+    <p class="help">Les réponses figurent dans le brief. Lisez-le avant de répondre : vous ne pourrez continuer qu'avec la bonne voie.</p>` + briefBlock(c);
+  html += ynBlock("q1", c.q1, pc.q1, c.q1Explain) + ynBlock("q2", c.q2, pc.q2, c.q2Explain);
+  if(r){
+    html += `<div class="decision-result"><div class="mission-name">→ ${ROUTES[r].name}</div><div>${ROUTES[r].desc}</div></div>`;
+    if(r !== c.expectedRoute) html += `<div class="feedback-box warn">Relisez le brief : au vu de ces éléments, la voie attendue est <strong>${ROUTES[c.expectedRoute].name}</strong>. Corrigez votre réponse pour continuer.</div>`;
+    if(r === "ia" && c.expectedRoute === "ia"){
+      html += `<h3 class="sub">Voie IA : à quelle famille d'usage cet irritant correspond-il ?</h3>`;
+      html += optionCards(FAMILIES.map(f => ({ label:`<strong>${f.name}</strong>`, sub:"ex. " + f.example })), pc.family, "family",
+        i => i === c.correctFamily ? { s:"ok", t:c.familyExplain } : { s:"ko", t:"Observez ce que fait concrètement le conseiller au moment de l'irritant : cette famille correspond à un autre besoin." });
+    }
+  }
+  return html;
+}
+function sizingBlocks(pc, judge){
+  const imp = impactOf(pc.pop, pc.part);
+  const J = (fn, i) => judge && fn ? fn(i) : null;
+  let html = `<h3 class="sub">Qui est concerné par cet irritant ?</h3>` +
+    optionCards(POP.map(p => ({ label:`<strong>${p.label}</strong>` })), pc.pop, "pop", judge ? judge.pop : null, true);
+  html += `<h3 class="sub">Quelle part de leur temps cela représente-t-il ?</h3>` +
+    optionCards(PART.map(p => ({ label:`<strong>${p.label}</strong>` })), pc.part, "part", judge ? judge.part : null, true);
+  html += imp
+    ? `<div class="impact"><div class="num">≈ ${ordre(imp.mid)} ETP</div><div class="num-label">mobilisés par cet irritant (fourchette : ${fmtEtp(imp.lo)} à ${fmtEtp(imp.hi)})</div><span class="tier-badge tier-${imp.tier}">Enjeu ${imp.tier}</span></div>`
+    : `<div class="impact empty">Répondez aux deux questions pour obtenir un ordre de grandeur.</div>`;
+  html += `<div class="formula-note">Convention : une équipe compte moins de 20 personnes, un service de 20 à 200, une direction de 200 à 2 000, l'entreprise au-delà. Part marginale : moins de 5 % du temps ; notable : de 5 à 20 % ; structurante : plus de 20 %. Population × part de temps = équivalents temps plein consommés par l'irritant. C'est l'ampleur de ce que l'on adresse, pas le gain attendu de l'IA. Enjeu faible en dessous de 2 ETP, fort au-delà de 20.</div>`;
+  html += `<h3 class="sub">Au-delà du temps passé, quel est l'enjeu principal pour le client ?</h3>` +
+    optionCards(ENJEUX.map(e => ({ label:e.label, key:e.key })), pc.enjeu === null ? null : ENJEUX.findIndex(e => e.key === pc.enjeu), "enjeu", judge ? judge.enjeu : null, true);
+  return html;
+}
+function stepValue(c, pc){
+  const z = c.sizing;
+  const judge = {
+    pop: i => i === z.pop ? { s:"ok", t:z.popNote } : { s:"ko", t:"Relisez le brief : " + z.popNote },
+    part: i => i === z.part ? { s:"ok", t:z.partNote } : { s:"ko", t:"Relisez le brief : " + z.partNote },
+    enjeu: i => z.enjeuNotes[ENJEUX[i].key] || { s:"ko", t:"Ce n'est pas ce que le brief met en avant." }
+  };
+  return `<h2 class="q-title">Valoriser : quelle est l'ampleur du sujet ?</h2>
+    <p class="help">Inutile de compter les minutes par dossier : personne ne les connaît au premier rendez-vous. Traduisez le brief en deux ordres de grandeur.</p>
+    <div class="brief"><b>Ce que vous savez du client</b><ul>${z.brief.map(l => `<li>${l}</li>`).join("")}</ul></div>` + sizingBlocks(pc, judge);
+}
+function chainBlock(chain){
+  return `<div class="chain"><b style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px">Qui mobiliser, dans l'ordre</b><br>` +
+    chain.map(x => `<span class="who ${x.bu ? "bu" : ""}"><b>${x.role}${x.first ? " · premier contact" : ""}${x.bu ? " · seule sortie vers la BU IA" : ""}</b>${x.why}</span>`).join("") + `</div>`;
+}
+function contactOptions(c, pc, chain){
+  const list = [
+    { key:"champFS", label:ROLES.champFS, sub:"relais FS de l'offre IA sur le compte — voir la ligne " + c.account + " du tableau des comptes" },
+    { key:"champion", label:ROLES.champion, sub:"champion IA côté compte" },
+    { key:"sales", label:ROLES.sales, sub:"relais commercial du compte" },
+    { key:"core", label:ROLES.core, sub:"le pool d'experts de l'offre" },
+    { key:"bu", label:ROLES.bu, sub:"la BU IA, via FS" }
+  ];
+  const first = chain.find(x => x.first);
+  return { list, judge: i => {
+    const k = list[i].key;
+    if(k === c.contactExpected) return { s:"ok", t:`C'est le bon premier contact : ${first.why}. Il reçoit votre note avec le responsable de compte.` };
+    if(k === "bu") return { s:"ko", t:"La BU IA n'est jamais le premier appel d'un manager FS : on y va une fois, par la Relation BU, quand un pilote doit s'industrialiser." };
+    if(k === "core") return { s:"partial", t:"La core team instruit le cas, mais elle est saisie par l'IA Champ. FS du compte, pas en direct." };
+    if(k === "champion" && c.expectedRoute !== "si") return { s:"partial", t:"Il sera dans la boucle, mais le premier appel FS est l'IA Champ. FS : c'est lui qui relie le compte à l'offre." };
+    if(k === "sales" && c.expectedRoute !== "si") return { s:"ko", t:"Le Sales Relay porte le commercial du compte, pas l'instruction d'un sujet IA." };
+    return { s:"ko", t:"Le sujet sort de l'offre IA : le premier appel est le Sales Relay, qui porte le sujet vers les équipes SI de FS avec le responsable de compte." };
+  }};
+}
+function buildPitch(irritant, imp, enjeuKey, route, nextKey){
+  const parts = [];
+  if(irritant) parts.push(irritant.replace(/\.$/, "") + ".");
+  if(imp) parts.push(`Cela représente de l'ordre de ${ordre(imp.mid)} équivalents temps plein.`);
+  const e = enjeuOf(enjeuKey); if(e && e.key !== "temps") parts.push(e.phrase);
+  if(route) parts.push(ROUTES[route].lead);
+  const n = NEXT.find(x => x.key === nextKey); if(n) parts.push(n.pitch);
+  return parts.length ? "« " + parts.join(" ") + " »" : "";
+}
+function stepConvert(c, pc){
+  const r = routeOf(pc.q1, pc.q2), imp = impactOf(pc.pop, pc.part);
+  if(!r) return `<h2 class="q-title">Convertir</h2><div class="feedback-box warn">Revenez à l'étape 2 : la voie n'est pas choisie.</div>`;
+  const tier = imp ? imp.tier : "Moyen";
+  const mKey = missionOf(r, tier), chain = chainFor(r, tier);
+  let html = `<h2 class="q-title">Convertir : trois décisions à prendre</h2>
+    <div class="decision-result"><div class="mission-name">→ ${MISSIONS[mKey].name}</div><div>${MISSIONS[mKey].desc}</div>${chainBlock(chain)}</div>`;
+
+  html += `<h3 class="sub">1. Quelle est votre prochaine action ?</h3>`;
+  html += optionCards(NEXT.map(n => ({ label:`<strong>${n.label}</strong>`, sub:n.sub })), pc.next === null ? null : NEXT.findIndex(n => n.key === pc.next), "next",
+    i => c.next.notes[NEXT[i].key]);
+
+  const co = contactOptions(c, pc, chain);
+  html += `<h3 class="sub">2. Qui contactez-vous en premier chez Wavestone ?</h3>`;
+  html += optionCards(co.list.map(x => ({ label:`<strong>${x.label}</strong>`, sub:x.sub })), pc.contact === null ? null : co.list.findIndex(x => x.key === pc.contact), "contact", co.judge);
+
+  html += `<h3 class="sub">3. Le client vous répond. Que lui dites-vous ?</h3><div class="objection"><b>Objection</b>${c.objection.text}</div>`;
+  html += optionCards(c.objection.options, pc.objection, "objection", i => ({ s:c.objection.options[i].s, t:c.objection.options[i].t }));
+
+  if(pc.next !== null && pc.contact !== null && pc.objection !== null){
+    const irr = pc.irritant !== null ? c.irritants[pc.irritant].text : "";
+    html += `<div class="pitch"><b>Votre pitch, construit à partir de vos réponses</b>${esc(buildPitch(irr, imp, pc.enjeu, r, pc.next))}</div>`;
+  }
+  return html;
+}
+
+/* ---- Synthèse ------------------------------------------------------ */
+function judgeTag(s){ return s === "ok" ? `<span class="tag ok">attendu</span>` : s === "partial" ? `<span class="tag warn">acceptable</span>` : `<span class="tag ko">à revoir</span>`; }
+function caseLines(c, pc){
+  const r = routeOf(pc.q1, pc.q2), imp = impactOf(pc.pop, pc.part), tier = imp ? imp.tier : "Moyen";
+  const mKey = r ? missionOf(r, tier) : null, chain = r ? chainFor(r, tier) : [];
+  const n = NEXT.find(x => x.key === pc.next);
+  return {
+    r, imp, mKey, chain, n,
+    text:[
+      c.title,
+      "Irritant : " + (pc.irritant !== null ? c.irritants[pc.irritant].text : "—"),
+      "Voie : " + (r ? ROUTES[r].name : "—") + (r === "ia" && pc.family !== null ? " · " + FAMILIES[pc.family].name : ""),
+      "Enjeu : " + (imp ? `${etpPhrase(imp)}, ${imp.tier}` : "—") + (pc.enjeu ? " · " + enjeuOf(pc.enjeu).label : ""),
+      "Mission : " + (mKey ? MISSIONS[mKey].name : "—"),
+      "Prochaine action : " + (n ? n.label + " — " + n.sub : "—"),
+      "Qui mobiliser : " + chain.map(x => x.role).join(" → "),
+      "Pitch : " + buildPitch(pc.irritant !== null ? c.irritants[pc.irritant].text : "", imp, pc.enjeu, r, pc.next)
+    ].join("\n")
+  };
+}
+function renderSummary(c, pc){
+  const L = caseLines(c, pc);
+  const irrOk = pc.irritant !== null && c.irritants[pc.irritant].correct;
+  const irrTag = pc.irritant === null ? "" : irrOk ? (pc.irritantTries <= 1 ? `<span class="tag ok">du premier coup</span>` : `<span class="tag warn">au ${pc.irritantTries}e essai</span>`) : `<span class="tag ko">pas celui attendu</span>`;
+  const routeTag = L.r ? (L.r === c.expectedRoute ? `<span class="tag ok">voie attendue</span>` : `<span class="tag ko">attendu : ${ROUTES[c.expectedRoute].name}</span>`) : "";
+  const nextTag = pc.next ? judgeTag(c.next.notes[pc.next].s) : "";
+  const contactTag = pc.contact ? judgeTag(pc.contact === c.contactExpected ? "ok" : (pc.contact === "core" || (pc.contact === "champion" && c.expectedRoute !== "si")) ? "partial" : "ko") : "";
+  const objTag = pc.objection !== null ? judgeTag(c.objection.options[pc.objection].s) : "";
+  const contactLabel = pc.contact ? ROLES[pc.contact] : "—";
+  return `<div class="card-panel">
+    <h2 class="q-title">Synthèse — ${c.title}</h2>
+    <div class="summary-grid">
+      <div class="k">Irritant</div><div>${pc.irritant !== null ? c.irritants[pc.irritant].text : "—"} ${irrTag}</div>
+      <div class="k">Voie</div><div>${L.r ? ROUTES[L.r].name : "—"}${L.r === "ia" && pc.family !== null ? " · " + FAMILIES[pc.family].name : ""} ${routeTag}</div>
+      <div class="k">Enjeu</div><div>${L.imp ? `≈ ${ordre(L.imp.mid)} ETP (fourchette ${fmtEtp(L.imp.lo)} à ${fmtEtp(L.imp.hi)}) <span class="tag ${L.imp.tier === "Fort" ? "ok" : L.imp.tier === "Moyen" ? "warn" : "ko"}">${L.imp.tier}</span>` : "—"}${pc.enjeu ? " · " + enjeuOf(pc.enjeu).label : ""}</div>
+      <div class="k">Mission</div><div>${L.mKey ? `<strong>${MISSIONS[L.mKey].name}</strong>` : "—"}</div>
+      <div class="k">Prochaine action</div><div>${L.n ? L.n.label + " — " + L.n.sub : "—"} ${nextTag}</div>
+      <div class="k">Premier contact</div><div>${contactLabel} ${contactTag}</div>
+      <div class="k">Objection</div><div>${pc.objection !== null ? c.objection.options[pc.objection].text : "—"} ${objTag}</div>
+    </div>
+    ${L.chain.length ? chainBlock(L.chain) : ""}
+    <div class="closing-note">Le réflexe à retenir : partir de l'irritant, le requalifier sans complaisance, donner un ordre de grandeur, puis transmettre au bon interlocuteur, avec une date. À vous maintenant, sur votre mission.</div>
+    <div class="pitch"><b>Le pitch</b>${esc(buildPitch(pc.irritant !== null ? c.irritants[pc.irritant].text : "", L.imp, pc.enjeu, L.r, pc.next))}</div>
+    <div class="nav-row">
+      <button class="nav-btn btn-secondary" id="btnPrev">← Revoir ce cas</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="nav-btn btn-secondary" id="btnCopy">Copier la synthèse</button>
+        <button class="nav-btn btn-primary" id="btnNext">Passer à ma mission →</button>
+      </div>
+    </div></div>`;
+}
+/* ---- Navigation / liaison ------------------------------------------- */
+function canProceed(){
+  const pc = state.perCase[state.tab];
+  if(state.screen === 1) return pc.irritant !== null;
+  if(state.screen === 2){
+    const c = CASES[state.tab], r = routeOf(pc.q1, pc.q2);
+    return r === c.expectedRoute && (r !== "ia" || pc.family === c.correctFamily);
+  }
+  if(state.screen === 3) return impactOf(pc.pop, pc.part) !== null && pc.enjeu !== null;
+  if(state.screen === 4) return pc.next !== null && pc.contact !== null && pc.objection !== null;
+  return true;
+}
+function navRow(){
+  return `<div class="nav-row">
+    <button class="nav-btn btn-secondary" id="btnPrev" ${(state.tab === 0 && state.screen === 1) ? "disabled" : ""}>← Précédent</button>
+    <button class="nav-btn btn-primary" id="btnNext" ${canProceed() ? "" : "disabled"}>${state.screen === 4 ? "Voir la synthèse du cas" : "Suivant →"}</button></div>`;
+}
+function bindChoice(attr, fn){ document.querySelectorAll(`[data-${attr}]`).forEach(b => b.addEventListener("click", () => { fn(b.dataset[attr]); render(); })); }
+function bindStep(c, pc){
+  bindChoice("irritant", v => { const i = parseInt(v); if(pc.irritant !== i) pc.irritantTries += 1; pc.irritant = i; });
+  bindChoice("family", v => { pc.family = parseInt(v); });
+  bindChoice("pop", v => { pc.pop = parseInt(v); });
+  bindChoice("part", v => { pc.part = parseInt(v); });
+  bindChoice("enjeu", v => { pc.enjeu = ENJEUX[parseInt(v)].key; });
+  bindChoice("next", v => { pc.next = NEXT[parseInt(v)].key; });
+  bindChoice("contact", v => { pc.contact = ["champFS","champion","sales","core","bu"][parseInt(v)]; });
+  bindChoice("objection", v => { pc.objection = parseInt(v); });
+  document.querySelectorAll(".yn-btn").forEach(b => b.addEventListener("click", () => { pc[b.dataset.q] = b.dataset.val === "true"; render(); }));
+  const prev = document.getElementById("btnPrev"), next = document.getElementById("btnNext");
+  if(prev) prev.addEventListener("click", () => { if(state.screen > 1) state.screen -= 1; else if(state.tab > 0){ state.tab -= 1; state.screen = 5; } render(); });
+  if(next) next.addEventListener("click", () => { if(canProceed()){ state.screen += 1; render(); } });
+}
+function bindSummary(c, pc){
+  document.getElementById("btnPrev").addEventListener("click", () => { state.screen = 4; render(); });
+  document.getElementById("btnCopy").addEventListener("click", () => copyText(caseLines(c, pc).text));
+  document.getElementById("btnNext").addEventListener("click", () => { state.tab = MINE; render(); });
+}
+/* ===========================================================================
+   MA MISSION
+=========================================================================== */
+const CHECKS = ["Récurrent (à chaque dossier, chaque semaine…)", "Coûteux en temps pour les équipes", "Mesurable (un temps, un volume, un délai)"];
+const MINE_Q1 = "Les systèmes ou les données concernés sont-ils en place, connectés et exploitables ?";
+const MINE_Q2 = "Le processus est-il stable et réellement appliqué par les équipes ?";
+
+function mineFirstContact(m, chain){ return chain.length ? chain[0].role : ""; }
+function mineText(m){
+  const r = routeOf(m.q1, m.q2), imp = impactOf(m.pop, m.part), tier = imp ? imp.tier : "Moyen";
+  const mKey = r ? missionOf(r, tier) : null, chain = r ? chainFor(r, tier) : [];
+  const n = NEXT.find(x => x.key === m.next);
+  return [
+    "Ma mission — " + (m.account || m.client || "—") + (m.account && m.client ? " · " + m.client : ""),
+    "Irritant : " + (m.irritant || "—"),
+    "Voie : " + (r ? ROUTES[r].name : "—") + (r === "ia" && m.family !== null ? " · " + FAMILIES[m.family].name : ""),
+    "Enjeu : " + (imp ? `${etpPhrase(imp)}, ${imp.tier}` : "—") + (m.enjeu ? " · " + enjeuOf(m.enjeu).label : ""),
+    "Mission : " + (mKey ? MISSIONS[mKey].name : "—"),
+    "Prochaine action : " + (n ? n.label : "—") + (m.date ? " — avant le " + fmtDate(m.date) : ""),
+    "Premier contact : " + (m.contact || mineFirstContact(m, chain) || "—"),
+    "Qui mobiliser : " + chain.map(x => x.role).join(" → "),
+    "Pitch : " + buildPitch(m.irritant, imp, m.enjeu, r, m.next)
+  ].join("\n");
+}
+function renderMine(){
+  const m = state.mine, s = state.mineScreen;
+  const r = routeOf(m.q1, m.q2), imp = impactOf(m.pop, m.part), tier = imp ? imp.tier : "Moyen";
+  const chain = r ? chainFor(r, tier) : [];
+  let html = `<div class="card-panel">` + (s === 5 ? stepTracker(5, "Ma fiche — les quatre étapes réunies") : stepTracker(s));
+  html += `<div class="mission-context">Le même framework, <strong>appliqué à une mission que vous menez actuellement</strong>. Personne ne corrige ici : c'est votre jugement qui compte, et ce que vous en ferez la semaine prochaine.</div>`;
+
+  if(s === 1){
+    html += `<h2 class="q-title">Décrivez un irritant que vous avez entendu sur votre compte</h2>
+      <div class="two-cols">
+        <div class="field-row"><label>Compte</label><select id="m-account"><option value="">— Autre / non listé —</option>${ACCOUNTS.map(k => `<option value="${k}" ${m.account === k ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+        <div class="field-row"><label>Entité / mission</label><input type="text" id="m-client" value="${esc(m.client)}" placeholder="ex. banque de détail, parcours crédit"></div>
+      </div>
+      <div class="field-row"><label>L'irritant en une phrase, tel que les équipes l'expriment</label><textarea id="m-irritant" placeholder="« Les équipes… à chaque… »">${esc(m.irritant)}</textarea></div>
+      <p class="help">Vérifiez qu'il remplit les trois critères. S'il en manque un, reformulez-le ou choisissez-en un autre.</p>
+      <div class="checks">${CHECKS.map((c, i) => `<label class="${m.checks[i] ? "on" : ""}"><input type="checkbox" data-check="${i}" ${m.checks[i] ? "checked" : ""}> ${c}</label>`).join("")}</div>`;
+    if(m.irritant.trim() && !m.checks.every(Boolean)) html += `<div class="feedback-box warn">Un irritant qui ne remplit pas les trois critères se défend mal : il n'est pas mesurable, ou pas assez fréquent pour justifier une mission.</div>`;
+  }
+  if(s === 2){
+    html += `<h2 class="q-title">Requalifier : s'agit-il d'un sujet IA, SI ou d'adoption ?</h2>` + ynBlock("q1", MINE_Q1, m.q1, "") + ynBlock("q2", MINE_Q2, m.q2, "");
+    if(r){
+      html += `<div class="decision-result"><div class="mission-name">→ ${ROUTES[r].name}</div><div>${ROUTES[r].desc}</div></div>`;
+      if(r === "ia"){
+        html += `<h3 class="sub">Voie IA : quelle famille d'usage ?</h3>` + optionCards(FAMILIES.map(f => ({ label:`<strong>${f.name}</strong>`, sub:"ex. " + f.example })), m.family, "family", null);
+      }
+    }
+  }
+  if(s === 3){
+    html += `<h2 class="q-title">Valoriser : quelle est l'ampleur du sujet ?</h2><p class="help">Un ordre de grandeur suffit : c'est celui que vous donnerez au client, et qu'il corrigera lui-même. Pas de correction ici : c'est votre estimation.</p>` + sizingBlocks(m, null);
+  }
+  if(s === 4){
+    html += `<h2 class="q-title">Convertir : quelle action, quand, et avec qui ?</h2>`;
+    if(!r) html += `<div class="feedback-box warn">Revenez à l'étape 2 : la voie n'est pas choisie.</div>`;
+    else {
+      const mKey = missionOf(r, tier);
+      html += `<div class="decision-result"><div class="mission-name">→ ${MISSIONS[mKey].name}</div><div>${MISSIONS[mKey].desc}</div>${chainBlock(chain)}</div>`;
+      html += `<h3 class="sub">1. Votre prochaine action</h3>` + optionCards(NEXT.map(n => ({ label:`<strong>${n.label}</strong>`, sub:n.sub })), m.next === null ? null : NEXT.findIndex(n => n.key === m.next), "next", null);
+      html += `<div class="two-cols">
+        <div class="field-row"><label>Avant le</label><input type="date" id="m-date" value="${esc(m.date)}"></div>
+        <div class="field-row"><label>Premier contact chez Wavestone</label><input type="text" id="m-contact" value="${esc(m.contact)}" placeholder="${esc(mineFirstContact(m, chain) || "fonction à appeler")}"></div>
+      </div>
+      <p class="help">Le premier contact est proposé en fonction de la voie ; le nom figure sur la ligne de votre compte dans le tableau « Suivi des comptes ».</p>`;
+      if(m.next) html += `<div class="pitch"><b>Votre pitch</b>${esc(buildPitch(m.irritant, imp, m.enjeu, r, m.next))}</div>`;
+    }
+  }
+  if(s === 5){
+    const mKey = r ? missionOf(r, tier) : null, n = NEXT.find(x => x.key === m.next);
+    html += `<h2 class="q-title">Ma fiche</h2><div class="summary-grid">
+      <div class="k">Mission</div><div>${esc(m.account || "")}${m.account && m.client ? " · " : ""}${esc(m.client) || (m.account ? "" : "—")}</div>
+      <div class="k">Irritant</div><div>${esc(m.irritant) || "—"} ${m.checks.every(Boolean) ? `<span class="tag ok">3 critères</span>` : `<span class="tag warn">${m.checks.filter(Boolean).length}/3 critères</span>`}</div>
+      <div class="k">Voie</div><div>${r ? ROUTES[r].name : "—"}${r === "ia" && m.family !== null ? " · " + FAMILIES[m.family].name : ""}</div>
+      <div class="k">Enjeu</div><div>${imp ? `≈ ${ordre(imp.mid)} ETP (fourchette ${fmtEtp(imp.lo)} à ${fmtEtp(imp.hi)}, ${imp.tier})` : "—"}${m.enjeu ? " · " + enjeuOf(m.enjeu).label : ""}</div>
+      <div class="k">Mission</div><div>${mKey ? `<strong>${MISSIONS[mKey].name}</strong>` : "—"}</div>
+      <div class="k">Engagement</div><div>${n ? `<strong>${n.label}</strong>` : "—"}${m.date ? `, avant le <strong>${esc(fmtDate(m.date))}</strong>` : ""}${(m.contact || mineFirstContact(m, chain)) ? ` — premier contact : <strong>${esc(m.contact || mineFirstContact(m, chain))}</strong>` : ""}</div>
+    </div>${chain.length ? chainBlock(chain) : ""}
+    <div class="pitch"><b>Mon pitch</b>${esc(buildPitch(m.irritant, imp, m.enjeu, r, m.next)) || "—"}</div>
+    <div class="closing-note">Relisez ce pitch à voix haute. Si une phrase ne vous semble pas naturelle face au client, c'est celle-là qu'il faut retravailler. La date est un engagement : notez-la dans votre agenda et copiez votre fiche avant de fermer cette page.</div>`;
+  }
+  html += `</div>`;
+  const can = s === 1 ? m.irritant.trim().length > 0 : s === 2 ? (r !== null && (r !== "ia" || m.family !== null)) : s === 3 ? (imp !== null && m.enjeu !== null) : s === 4 ? m.next !== null : true;
+  html += `<div class="nav-row"><button class="nav-btn btn-secondary" id="btnPrev" ${s === 1 ? "disabled" : ""}>← Précédent</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${s === 5 ? `<button class="nav-btn btn-secondary" id="btnCopy">Copier ma fiche</button><button class="nav-btn btn-secondary" id="btnResetMine">Nouvelle fiche</button>` : ""}
+      ${s < 5 ? `<button class="nav-btn btn-primary" id="btnNext" ${can ? "" : "disabled"}>${s === 4 ? "Voir ma fiche" : "Suivant →"}</button>` : ""}
+    </div></div>`;
+  $screen.innerHTML = html;
+  bindMine(m);
+}
+function bindMine(m){
+  const acc = document.getElementById("m-account"), client = document.getElementById("m-client"), irr = document.getElementById("m-irritant");
+  if(acc) acc.addEventListener("change", () => { m.account = acc.value; m.contact = ""; persist(); });
+  if(client) client.addEventListener("input", () => { m.client = client.value; persist(); });
+  if(irr) irr.addEventListener("input", () => { m.irritant = irr.value; persist(); const n = document.getElementById("btnNext"); if(n) n.disabled = !m.irritant.trim(); });
+  document.querySelectorAll("[data-check]").forEach(cb => cb.addEventListener("change", () => { m.checks[parseInt(cb.dataset.check)] = cb.checked; render(); }));
+  document.querySelectorAll(".yn-btn").forEach(b => b.addEventListener("click", () => { m[b.dataset.q] = b.dataset.val === "true"; render(); }));
+  bindChoice("family", v => { m.family = parseInt(v); });
+  bindChoice("pop", v => { m.pop = parseInt(v); });
+  bindChoice("part", v => { m.part = parseInt(v); });
+  bindChoice("enjeu", v => { m.enjeu = ENJEUX[parseInt(v)].key; });
+  bindChoice("next", v => { m.next = NEXT[parseInt(v)].key; });
+  const date = document.getElementById("m-date"), contact = document.getElementById("m-contact");
+  if(date) date.addEventListener("input", () => { m.date = date.value; persist(); });
+  if(contact) contact.addEventListener("input", () => { m.contact = contact.value; persist(); });
+  const prev = document.getElementById("btnPrev"), next = document.getElementById("btnNext");
+  if(prev) prev.addEventListener("click", () => { state.mineScreen = Math.max(1, state.mineScreen - 1); render(); });
+  if(next) next.addEventListener("click", () => { if(!next.disabled){ state.mineScreen += 1; render(); } });
+  const copy = document.getElementById("btnCopy"); if(copy) copy.addEventListener("click", () => copyText(mineText(m)));
+  const reset = document.getElementById("btnResetMine"); if(reset) reset.addEventListener("click", () => { state.mine = freshMine(); state.mineScreen = 1; render(); });
+}
+
+/* ===========================================================================
+   UTILITAIRES
+=========================================================================== */
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1800); }
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); toast("Copié dans le presse-papier"); }
+  catch(e){
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); toast("Copié dans le presse-papier"); }catch(e2){ toast("Copie impossible ici : sélectionnez le texte à la main"); }
+    ta.remove();
+  }
+}
+document.getElementById("btnResetAll").addEventListener("click", () => {
+  state = freshState();
+  try{ sessionStorage.removeItem(STORAGE_KEY); localStorage.removeItem("pitcher-ia-v3c"); localStorage.removeItem("pitcher-ia-v3b"); localStorage.removeItem("pitcher-ia-v3"); localStorage.removeItem("pitcher-ia-v2"); }catch(e){}
+  render();
+  window.scrollTo(0, 0);
+});
+render();
+</script>
+</body>
+</html>
